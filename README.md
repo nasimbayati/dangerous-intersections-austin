@@ -55,22 +55,22 @@ This project identifies and predicts **high-risk intersections** in Austin, Texa
 
 ```bash
 /
-├── crash_analysis_street.ipynb     # Full Jupyter notebook (Pro version)
+├── crash_analysis_street.ipynb     	# Full Jupyter notebook (Pro version)
 ├── app/
-│   ├── app.py                      # Flask app code
+│   ├── app.py                      	# Flask app code
 │   ├── templates/
-│   │   ├── index.html              # Home page for single prediction
-│   │   ├── upload.html             # Batch upload form
+│   │   ├── index.html              	# Home page for single prediction
+│   │   ├── upload.html             	# Batch upload form
 │	├── danger_grid_model_time.pkl  # Final ML model (with hour/day features)
 ├── data/
-│   ├── crash_data_cleaned.csv # Cleaned Austin crash dataset (Not uploaded due to size)
-│   ├── intersection_lookup.csv # Processed street intersection lookup
-│   ├── grid_summary_time.csv  # Aggregated grid data with time features
+│   ├── crash_data_cleaned.csv 		# Cleaned Austin crash dataset (Not uploaded due to size)
+│   ├── intersection_lookup.csv 	# Processed street intersection lookup
+│   ├── grid_summary_time.csv  		# Aggregated grid data with time features
 │
 ├── images/
-│	├── fatal_crashes.png      # Fatal crash hotspots visualization
-│   ├── most_dangerous.png     # General crash density hotspots visualization
-│   ├── night_crashes.png      # Nighttime crash hotspots visualization
+│	├── fatal_crashes.png      	# Fatal crash hotspots visualization
+│   ├── most_dangerous.png     		# General crash density hotspots visualization
+│   ├── night_crashes.png      		# Nighttime crash hotspots visualization
 │  
 ├── maps/
 │   ├── map_fatal_crashes.html 
@@ -78,19 +78,19 @@ This project identifies and predicts **high-risk intersections** in Austin, Texa
 │   ├── map_night_crashes.html
 │
 ├── screenshots/
-│   ├── 1_landing_page.png # For http://127.0.0.1:5000
-│   ├── 2_single_prediction.png # Result from http://127.0.0.1:5000
-│   ├── 3_batch_upload_form.png # For http://127.0.0.1:5000/Upload
-│   ├── 4_batch_upload_results.png # Result from http://127.0.0.1:5000/Upload
+│   ├── 1_landing_page.png 		# For http://127.0.0.1:5000
+│   ├── 2_single_prediction.png 	# Result from http://127.0.0.1:5000
+│   ├── 3_batch_upload_form.png 	# For http://127.0.0.1:5000/Upload
+│   ├── 4_batch_upload_results.png 	# Result from http://127.0.0.1:5000/Upload
 │
 ├── test/
-│   ├── test_upload_latlon.csv # A sample test file to upload with Latitude/Longitude
-│   ├── test_upload_mix.csv # A sample test file to upload with Latitude/Longitude and Primary Street/Secondary Street
-│   ├── test_upload_street.csv # A sample test file to upload with Primary Street/Secondary Street
+│   ├── test_upload_latlon.csv 		# A sample test file to upload with Latitude/Longitude
+│   ├── test_upload_mix.csv 		# A sample test file to upload with Latitude/Longitude and Primary Street/Secondary Street
+│   ├── test_upload_street.csv 		# A sample test file to upload with Primary Street/Secondary Street
 │
 │
-├── README.md                       # (This file)
-├── LICENSE                    # MIT License
+├── README.md                       	# (This file)
+├── LICENSE                    		# MIT License
 ```
 
 ## 🌟 Key Highlights
@@ -135,13 +135,15 @@ Here are some hotspot visualizations generated during the crash analysis:
 
 2. **Install dependencies**:
 	```bash
-pip install flask pandas scikit-learn folium imbalanced-learn
+	pip install flask pandas scikit-learn folium imbalanced-learn
 	```
+
 3. **Run the app**:
 	```bash
 	cd app
 	python app.py
 	```
+
 4. **Open your browser and navigate to**:
 
 http://127.0.0.1:5000
