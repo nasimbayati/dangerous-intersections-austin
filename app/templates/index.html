@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dangerous Intersection Detector</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <h1 class="mb-4 text-center">🚦 Dangerous Intersection Detector</h1>
+
+    <form method="POST" action="/" class="card p-4 shadow-sm">
+        <h5 class="mb-3">Enter Latitude and Longitude <strong>OR</strong> Street Names</h5>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="latitude" class="form-label">Latitude</label>
+                <input type="text" class="form-control" id="latitude" name="latitude" placeholder="e.g., 30.2672">
+            </div>
+
+            <div class="col-md-6">
+                <label for="longitude" class="form-label">Longitude</label>
+                <input type="text" class="form-control" id="longitude" name="longitude" placeholder="e.g., -97.7431">
+            </div>
+
+            <div class="col-md-6">
+                <label for="primary_street" class="form-label">Primary Street</label>
+                <input type="text" class="form-control" id="primary_street" name="primary_street" placeholder="e.g., N Lamar Blvd">
+            </div>
+
+            <div class="col-md-6">
+                <label for="secondary_street" class="form-label">Secondary Street</label>
+                <input type="text" class="form-control" id="secondary_street" name="secondary_street" placeholder="e.g., W 6th St">
+            </div>
+
+            <div class="col-md-6">
+                <label for="hour" class="form-label">Hour of Day (0-23)</label>
+                <input type="number" class="form-control" id="hour" name="hour" min="0" max="23" value="12">
+            </div>
+
+            <div class="col-md-6">
+                <label for="dayofweek" class="form-label">Day of Week (0=Mon, 6=Sun)</label>
+                <input type="number" class="form-control" id="dayofweek" name="dayofweek" min="0" max="6" value="2">
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-danger w-100 mt-3">Predict Danger Level</button>
+            </div>
+        </div>
+    </form>
+
+    {% if prediction %}
+    <div class="alert alert-info text-center mt-4">
+        <h4>{{ prediction }}</h4>
+        <p>Confidence: {{ confidence }}</p>
+    </div>
+    {% endif %}
+</div>
+
+</body>
+</html>
