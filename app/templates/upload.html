@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Batch Upload — Austin Dangerous Intersections</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <style>
+    body { background: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; }
+    .navbar-brand { font-weight: 700; }
+    .card { border: none; border-radius: 12px; box-shadow: 0 1px 8px rgba(0,0,0,.08); }
+    .card-header { border-radius: 12px 12px 0 0 !important; font-weight: 600; }
+
+    .drop-zone {
+      border: 2px dashed #d1d5db; border-radius: 12px;
+      padding: 2.5rem; text-align: center; color: #6b7280;
+      transition: all .2s;
+    }
+    .drop-zone:hover { border-color: #dc2626; color: #dc2626; background: #fff5f5; }
+    .drop-zone .icon { font-size: 2.5rem; margin-bottom: .75rem; }
+
+    .badge-high { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; font-weight: 600; }
+    .badge-safe { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; font-weight: 600; }
+    .badge-na   { background: #f9fafb; color: #6b7280; border: 1px solid #e5e7eb; font-weight: 500; }
+
+    table { font-size: .875rem; }
+    thead th { background: #1e293b; color: white; font-weight: 500; }
+
+    code { background: #f1f5f9; padding: .15rem .35rem; border-radius: 4px; font-size: .8rem; }
+
+    footer { background: #1e293b; color: #94a3b8; font-size: .8rem; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar navbar-dark" style="background:#1e293b;">
+  <div class="container">
+    <a class="navbar-brand" href="/">🚦 Austin Dangerous Intersections</a>
+    <a href="/" class="btn btn-sm btn-outline-light">Single Lookup</a>
+  </div>
+</nav>
+
+<div class="container py-4" style="max-width:900px;">
+
+  <h4 class="fw-bold mb-1">Batch Risk Assessment</h4>
+  <p class="text-muted mb-4">Upload a CSV with multiple locations — get predictions for all of them at once.</p>
+
+  <div class="row g-4">
+
+    <!-- Upload form -->
+    <div class="col-md-5">
+      <div class="card mb-3">
+        <div class="card-header bg-dark text-white">Upload CSV File</div>
+        <div class="card-body p-3">
+          <form method="POST" enctype="multipart/form-data">
+            <div class="drop-zone mb-3" onclick="document.getElementById('fileInput').click()">
+              <div class="icon">📂</div>
+              <div class="fw-semibold">Click to select a CSV file</div>
+              <div class="mt-1" style="font-size:.8rem;">or drag & drop</div>
+              <input type="file" id="fileInput" name="file" accept=".csv"
+                     style="display:none" onchange="updateLabel(this)">
+              <div id="fileLabel" class="mt-2 text-success fw-semibold" style="font-size:.85rem;"></div>
+            </div>
+            <button type="submit" class="btn btn-danger w-100 fw-semibold">Run Batch Prediction</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Format guide -->
+      <div class="card">
+        <div class="card-header bg-secondary text-white">CSV Format Guide</div>
+        <div class="card-body p-3" style="font-size:.825rem;">
+          <p class="mb-2"><strong>Required columns (choose one pair):</strong></p>
+          <p class="mb-1">
+            <strong>Coordinates:</strong><br>
+            <code>latitude</code>, <code>longitude</code>
+          </p>
+          <p class="mb-1">
+            <strong>Street names:</strong><br>
+            <code>primary_street</code>, <code>secondary_street</code>
+          </p>
+          <p class="mt-2 mb-1"><strong>Time columns (optional, defaults: hour=12, day=2):</strong></p>
+          <p class="mb-0"><code>hour</code> (0–23), <code>dayofweek</code> (0=Mon … 6=Sun)</p>
+          <hr class="my-2">
+          <p class="mb-1"><strong>Example rows:</strong></p>
+          <pre style="font-size:.75rem;background:#f8fafc;padding:.5rem;border-radius:6px;margin:0;">latitude,longitude,hour,dayofweek
+30.289,-97.723,8,1
+30.348,-97.712,17,4
+
+primary_street,secondary_street,hour,dayofweek
+n lamar blvd,w 6th st,9,2
+e riverside dr,s congress ave,18,4</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="col-md-7">
+      {% if results %}
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h6 class="mb-0 fw-bold">Results — {{ results|length }} location{{ 's' if results|length != 1 }}</h6>
+        <button class="btn btn-sm btn-outline-secondary" onclick="downloadCSV()">⬇ Download CSV</button>
+      </div>
+
+      <!-- Summary badges -->
+      <div class="mb-3 d-flex gap-2 flex-wrap">
+        {% set high_count = results | selectattr('is_high_risk') | list | length %}
+        {% set safe_count = results | length - high_count %}
+        <span class="badge rounded-pill bg-danger">{{ high_count }} High Risk</span>
+        <span class="badge rounded-pill bg-success">{{ safe_count }} Not High Risk</span>
+      </div>
+
+      <div class="card">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr>
+                <th>Location</th>
+                <th>Time</th>
+                <th>Prediction</th>
+                <th>Confidence</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in results %}
+              <tr>
+                <td>
+                  <div class="fw-semibold" style="font-size:.8rem;">{{ r.location }}</div>
+                  <div class="text-muted" style="font-size:.75rem;">{{ r.lat }}, {{ r.lon }}</div>
+                </td>
+                <td style="white-space:nowrap;">
+                  <span style="font-size:.8rem;">
+                    Hour {{ r.hour }}<br>
+                    <span class="text-muted">Day {{ r.day }}</span>
+                  </span>
+                </td>
+                <td>
+                  {% if r.is_high_risk %}
+                    <span class="badge badge-high rounded-pill px-2">⚠️ High Risk</span>
+                  {% elif r.prediction == 'Not High Risk' %}
+                    <span class="badge badge-safe rounded-pill px-2">✅ Safe</span>
+                  {% else %}
+                    <span class="badge badge-na rounded-pill px-2">{{ r.prediction }}</span>
+                  {% endif %}
+                </td>
+                <td class="fw-semibold">{{ r.confidence }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Hidden JSON for download -->
+      <script id="resultsJson" type="application/json">{{ results | tojson }}</script>
+
+      {% else %}
+      <div class="text-center text-muted py-5" style="border: 2px dashed #e5e7eb; border-radius:12px;">
+        <div style="font-size:3rem;">📋</div>
+        <p class="mt-2">Upload a CSV to see predictions here.</p>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+</div>
+
+<footer class="mt-5 py-3">
+  <div class="container text-center">
+    Data: City of Austin Open Data Portal · Model: XGBoost · 229,000+ crash records (2014–2026)
+  </div>
+</footer>
+
+<script>
+function updateLabel(input) {
+  const label = document.getElementById('fileLabel');
+  label.textContent = input.files.length ? '✓ ' + input.files[0].name : '';
+}
+
+function downloadCSV() {
+  const data = JSON.parse(document.getElementById('resultsJson').textContent);
+  fetch('/download-results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  })
+  .then(r => r.blob())
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href    = url;
+    a.download = 'risk_predictions.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+}
+
+// Drag-and-drop support
+const zone = document.querySelector('.drop-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = '#dc2626'; });
+zone.addEventListener('dragleave', () => { zone.style.borderColor = '#d1d5db'; });
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.style.borderColor = '#d1d5db';
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    document.getElementById('fileInput').files = e.dataTransfer.files;
+    updateLabel(document.getElementById('fileInput'));
+  }
+});
+</script>
+</body>
+</html>

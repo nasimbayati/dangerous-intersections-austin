@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Austin Dangerous Intersection Detector</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      --red-dark   : #b91c1c;
+      --red-mid    : #dc2626;
+      --red-light  : #fca5a5;
+      --green-dark : #15803d;
+      --gray-bg    : #f8fafc;
+    }
+
+    body { background: var(--gray-bg); font-family: 'Segoe UI', system-ui, sans-serif; }
+
+    .navbar-brand { font-weight: 700; letter-spacing: -0.5px; }
+
+    .hero {
+      background: linear-gradient(135deg, #1e293b 0%, #7f1d1d 100%);
+      color: white;
+      padding: 2.5rem 0 2rem;
+    }
+    .hero h1 { font-size: 2rem; font-weight: 700; }
+    .hero p  { opacity: .8; max-width: 560px; }
+
+    .card { border: none; border-radius: 12px; box-shadow: 0 1px 8px rgba(0,0,0,.08); }
+    .card-header { border-radius: 12px 12px 0 0 !important; font-weight: 600; }
+
+    .form-label { font-weight: 500; font-size: .875rem; color: #374151; }
+    .form-control:focus { border-color: var(--red-mid); box-shadow: 0 0 0 .2rem rgba(220,38,38,.15); }
+
+    .divider-or {
+      display: flex; align-items: center; gap: 1rem; color: #9ca3af;
+      font-size: .8rem; font-weight: 600; text-transform: uppercase; letter-spacing: .05em;
+    }
+    .divider-or::before, .divider-or::after {
+      content: ''; flex: 1; height: 1px; background: #e5e7eb;
+    }
+
+    .result-high {
+      background: #fff5f5; border-left: 4px solid var(--red-mid);
+    }
+    .result-safe {
+      background: #f0fdf4; border-left: 4px solid var(--green-dark);
+    }
+    .result-unknown {
+      background: #fffbeb; border-left: 4px solid #f59e0b;
+    }
+
+    .badge-risk {
+      font-size: 1.1rem; padding: .4rem .9rem; border-radius: 8px; font-weight: 700;
+    }
+    .confidence-bar-wrap { height: 8px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+    .confidence-bar      { height: 100%; border-radius: 99px; transition: width .6s ease; }
+
+    .stat-chip {
+      display: inline-flex; align-items: center; gap: .35rem;
+      background: white; border: 1px solid #e5e7eb; border-radius: 8px;
+      padding: .3rem .6rem; font-size: .8rem; color: #374151; font-weight: 500;
+    }
+    .stat-chip .label { color: #9ca3af; font-size: .72rem; font-weight: 400; }
+
+    #map { height: 340px; border-radius: 0 0 12px 12px; }
+
+    .tab-nav { border-bottom: 2px solid #e5e7eb; margin-bottom: 1.5rem; }
+    .tab-nav .nav-link {
+      color: #6b7280; font-weight: 500; border: none; border-bottom: 2px solid transparent;
+      margin-bottom: -2px; padding: .5rem 1rem;
+    }
+    .tab-nav .nav-link.active { color: var(--red-mid); border-bottom-color: var(--red-mid); }
+
+    .upload-link { color: #6b7280; font-size: .85rem; }
+    .upload-link:hover { color: var(--red-mid); }
+
+    footer { background: #1e293b; color: #94a3b8; font-size: .8rem; }
+  </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar navbar-dark" style="background:#1e293b;">
+  <div class="container">
+    <a class="navbar-brand" href="/">🚦 Austin Dangerous Intersections</a>
+    <a href="/upload" class="btn btn-sm btn-outline-light">Batch Upload</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="container">
+    <h1>Intersection Risk Detector</h1>
+    <p class="mt-2">
+      Trained on 229,000+ Austin crash records (2014–2026).
+      Enter a location by coordinates <em>or</em> street names to get an instant risk assessment.
+    </p>
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="container py-4">
+  <div class="row g-4">
+
+    <!-- Left: Form -->
+    <div class="col-lg-5">
+      <div class="card">
+        <div class="card-header bg-dark text-white">
+          Predict Intersection Risk
+        </div>
+        <div class="card-body p-4">
+          <form method="POST" action="/">
+
+            <!-- Coordinates -->
+            <p class="fw-semibold mb-2" style="font-size:.85rem;color:#6b7280;">OPTION A — Coordinates</p>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label">Latitude</label>
+                <input name="latitude" type="text" class="form-control form-control-sm"
+                       placeholder="e.g. 30.2672"
+                       value="{{ request.form.get('latitude','') }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Longitude</label>
+                <input name="longitude" type="text" class="form-control form-control-sm"
+                       placeholder="e.g. -97.7431"
+                       value="{{ request.form.get('longitude','') }}">
+              </div>
+            </div>
+
+            <div class="divider-or mb-3">or</div>
+
+            <!-- Street names -->
+            <p class="fw-semibold mb-2" style="font-size:.85rem;color:#6b7280;">OPTION B — Street Intersection</p>
+            <div class="mb-2">
+              <label class="form-label">Primary Street</label>
+              <input name="primary_street" type="text" class="form-control form-control-sm"
+                     placeholder="e.g. N Lamar Blvd"
+                     value="{{ request.form.get('primary_street','') }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Secondary Street (cross street)</label>
+              <input name="secondary_street" type="text" class="form-control form-control-sm"
+                     placeholder="e.g. W 6th St"
+                     value="{{ request.form.get('secondary_street','') }}">
+            </div>
+
+            <hr class="my-3">
+
+            <!-- Time -->
+            <p class="fw-semibold mb-2" style="font-size:.85rem;color:#6b7280;">TIME OF QUERY</p>
+            <div class="row g-2 mb-4">
+              <div class="col-6">
+                <label class="form-label">Hour of Day (0–23)</label>
+                <input name="hour" type="number" class="form-control form-control-sm"
+                       min="0" max="23" value="{{ request.form.get('hour', 12) }}">
+              </div>
+              <div class="col-6">
+                <label class="form-label">Day of Week (0=Mon)</label>
+                <input name="dayofweek" type="number" class="form-control form-control-sm"
+                       min="0" max="6" value="{{ request.form.get('dayofweek', 2) }}">
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-danger w-100 fw-semibold">
+              Assess Risk →
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <p class="text-center mt-3">
+        <a href="/upload" class="upload-link">Need to check multiple locations? Use batch upload →</a>
+      </p>
+    </div>
+
+    <!-- Right: Result + Map -->
+    <div class="col-lg-7">
+
+      <!-- Result panel -->
+      {% if result %}
+        {% if result.status == 'success' %}
+        <div class="card mb-3 result-{{ 'high' if result.is_high_risk else 'safe' }}">
+          <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+              <div>
+                <span class="badge-risk badge
+                  {{ 'bg-danger' if result.is_high_risk else 'bg-success' }}">
+                  {{ '⚠️ HIGH RISK' if result.is_high_risk else '✅ NOT HIGH RISK' }}
+                </span>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold fs-4">{{ result.confidence }}%</div>
+                <div style="font-size:.75rem;color:#9ca3af;">confidence</div>
+              </div>
+            </div>
+
+            <!-- Confidence bar -->
+            <div class="confidence-bar-wrap mb-3">
+              <div class="confidence-bar"
+                   style="width:{{ result.confidence }}%;
+                          background:{{ '#dc2626' if result.is_high_risk else '#16a34a' }};">
+              </div>
+            </div>
+
+            <!-- Stats chips -->
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <span class="stat-chip">
+                <span class="label">Crashes</span>
+                <strong>{{ result.total_crashes }}</strong>
+              </span>
+              <span class="stat-chip">
+                <span class="label">Deaths/crash</span>
+                <strong>{{ result.death_rate }}</strong>
+              </span>
+              <span class="stat-chip">
+                <span class="label">Injuries/crash</span>
+                <strong>{{ result.injury_rate }}</strong>
+              </span>
+              <span class="stat-chip">
+                <span class="label">Speed limit</span>
+                <strong>{{ result.avg_speed }}</strong>
+              </span>
+              <span class="stat-chip">
+                <span class="label">Ped involved</span>
+                <strong>{{ result.ped_rate }}</strong>
+              </span>
+              <span class="stat-chip">
+                <span class="label">Night crashes</span>
+                <strong>{{ result.night_rate }}</strong>
+              </span>
+            </div>
+
+            <!-- Plain-English explanation -->
+            {% if result.explanation %}
+            <div class="alert alert-light mb-0 p-3" style="font-size:.875rem;">
+              <strong>Why:</strong> {{ result.explanation | safe }}
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% elif result.status == 'nodata' %}
+        <div class="alert alert-warning">
+          <strong>Location found ({{ result.lat }}, {{ result.lon }})</strong> but no crash history exists for this grid cell — it cannot be assessed.
+        </div>
+
+        {% elif result.status == 'error' %}
+        <div class="alert alert-danger">
+          <strong>Error:</strong> {{ result.message }}
+        </div>
+        {% endif %}
+      {% endif %}
+
+      <!-- Embedded map -->
+      <div class="card">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+          <span>Austin Crash Hotspots (Top 60)</span>
+          <span style="font-size:.75rem;opacity:.6;">Red = most dangerous</span>
+        </div>
+        <div id="map"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<footer class="mt-5 py-3">
+  <div class="container text-center">
+    Data: City of Austin Open Data Portal · Model: XGBoost · 229,000+ crash records (2014–2026)
+  </div>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map = L.map('map').setView([30.2672, -97.7431], 11);
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© OpenStreetMap © CARTO', maxZoom: 19
+}).addTo(map);
+
+{% if result and result.status == 'success' %}
+// Pin the queried location
+L.circleMarker([{{ result.lat }}, {{ result.lon }}], {
+  radius: 10, color: '{{ "#ef4444" if result.is_high_risk else "#22c55e" }}',
+  fillOpacity: 0.9, weight: 2
+}).addTo(map).bindPopup('Your query<br>{{ result.prediction }}').openPopup();
+map.setView([{{ result.lat }}, {{ result.lon }}], 13);
+{% endif %}
+
+// Load top dangerous spots
+fetch('/api/map-data')
+  .then(r => r.json())
+  .then(data => {
+    const maxScore = Math.max(...data.map(d => d.total_danger_score));
+    data.forEach(d => {
+      const pct = d.total_danger_score / maxScore;
+      const r = Math.round(255 * pct), g = Math.round(40 * (1 - pct));
+      L.circleMarker([d.lat_grid, d.lon_grid], {
+        radius      : 5 + pct * 14,
+        color       : `rgb(${r},${g},40)`,
+        fillOpacity : 0.7,
+        weight      : 1
+      }).addTo(map)
+        .bindPopup(
+          `<b>Crashes:</b> ${d.total_crashes}<br>` +
+          `<b>Deaths/crash:</b> ${d.death_rate.toFixed(4)}<br>` +
+          `<b>Injuries/crash:</b> ${d.injury_rate.toFixed(2)}<br>` +
+          `<b>Avg speed:</b> ${d.avg_speed_limit > 0 ? d.avg_speed_limit.toFixed(0)+' mph' : 'Unknown'}`
+        );
+    });
+  });
+</script>
+</body>
+</html>
